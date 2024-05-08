@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 from transformers import AdamW, get_linear_schedule_with_warmup
 
+#removed layer and h_score finished version
 from model.layers import (
     Embedding,
     VisualProjection,
@@ -11,7 +12,6 @@ from model.layers import (
     CQAttention,
     CQConcatenate,
     ConditionedPredictor,
-    HighLightLayer,
     BertEmbedding,
 )
 
@@ -69,9 +69,6 @@ class VSLNet(nn.Module):
         # video and query fusion
         self.cq_attention = CQAttention(dim=configs.dim, drop_rate=configs.drop_rate)
         self.cq_concat = CQConcatenate(dim=configs.dim)
-        # query-guided highlighting
-        self.highlight_layer = HighLightLayer(dim=configs.dim)
-        # conditioned predictor
         self.predictor = ConditionedPredictor(
             dim=configs.dim,
             num_heads=configs.num_heads,
@@ -127,19 +124,13 @@ class VSLNet(nn.Module):
         video_features = self.feature_encoder(video_features, mask=v_mask)
         features = self.cq_attention(video_features, query_features, v_mask, q_mask)
         features = self.cq_concat(features, query_features, q_mask)
-        h_score = self.highlight_layer(features, v_mask)
-        features = features * h_score.unsqueeze(2)
+        features = features
         start_logits, end_logits = self.predictor(features, mask=v_mask)
-        return h_score, start_logits, end_logits
+        return start_logits, end_logits
 
     def extract_index(self, start_logits, end_logits):
         return self.predictor.extract_index(
             start_logits=start_logits, end_logits=end_logits
-        )
-
-    def compute_highlight_loss(self, scores, labels, mask):
-        return self.highlight_layer.compute_loss(
-            scores=scores, labels=labels, mask=mask
         )
 
     def compute_loss(self, start_logits, end_logits, start_labels, end_labels):
