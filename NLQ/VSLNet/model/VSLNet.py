@@ -15,7 +15,7 @@ from model.layers import (
     BertEmbedding,
 )
 
-
+#Changed VSLNet to VSLBase
 def build_optimizer_and_scheduler(model, configs):
     no_decay = [
         "bias",
